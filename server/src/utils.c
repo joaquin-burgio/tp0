@@ -4,42 +4,36 @@ t_log* logger;
 
 int iniciar_servidor(void)
 {
-	// Quitar esta línea cuando hayamos terminado de implementar la funcion
-	assert(!"no implementado!");
-
-	int socket_servidor;
-
-	struct addrinfo hints, *servinfo, *p;
+	struct addrinfo hints, *server_info;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	getaddrinfo(NULL, PUERTO, &hints, &servinfo);
+	getaddrinfo(NULL, PUERTO, &hints, &server_info);
+   
+    int fd_escucha = socket(server_info->ai_family,
+                            server_info->ai_socktype,
+                            server_info->ai_protocol);
+    
+    bind(fd_escucha, server_info->ai_addr, server_info->ai_addrlen);
+    
+    listen(fd_escucha, SOMAXCONN);
 
-	// Creamos el socket de escucha del servidor
-
-	// Asociamos el socket a un puerto
-
-	// Escuchamos las conexiones entrantes
-
-	freeaddrinfo(servinfo);
+	freeaddrinfo(server_info);
 	log_trace(logger, "Listo para escuchar a mi cliente");
 
-	return socket_servidor;
+	return fd_escucha; 
 }
 
-int esperar_cliente(int socket_servidor)
+int esperar_cliente(int fd_escucha)
 {
-	// Quitar esta línea cuando hayamos terminado de implementar la funcion
-	assert(!"no implementado!");
-
-	// Aceptamos un nuevo cliente
-	int socket_cliente;
+	int fd_conexion = accept(fd_escucha, NULL, NULL);
+	
 	log_info(logger, "Se conecto un cliente!");
 
-	return socket_cliente;
+	return fd_conexion;
 }
 
 int recibir_operacion(int socket_cliente)
@@ -91,6 +85,7 @@ t_list* recibir_paquete(int socket_cliente)
 		desplazamiento+=tamanio;
 		list_add(valores, valor);
 	}
+	
 	free(buffer);
 	return valores;
 }
