@@ -1,59 +1,70 @@
 #include"utils.h"
+#include<errno.h>
 
 t_log* logger;
 
 int iniciar_servidor(void)
 {
-	int fd_escucha;
+    int err;
+    struct addrinfo hints, *server_info;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_PASSIVE;
 
-	struct addrinfo hints, *server_info
-	//, *p
-	;
+    err = getaddrinfo(NULL, PUERTO, &hints, &server_info);
+    if (err != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(err));
+        abort();
+    }
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
+    int fd_escucha = socket(server_info->ai_family,
+                            server_info->ai_socktype,
+                            server_info->ai_protocol);
+    if (fd_escucha == -1) {
+        error_show("socket");
+        abort();
+    }
 
-	getaddrinfo(NULL, PUERTO, &hints, &server_info);
+    err = setsockopt(fd_escucha, SOL_SOCKET, SO_REUSEPORT, &(int){1}, sizeof(int));
+    if (err == -1) {
+        error_show("setsockopt");
+        abort();
+    }
 
-	// Creamos el socket de escucha del servidor
-	fd_escucha = socket(server_info->ai_family,
-                        server_info->ai_socktype,
-                        server_info->ai_protocol);
+    err = bind(fd_escucha, server_info->ai_addr, server_info->ai_addrlen);
+    if (err == -1) {
+        error_show("bind");
+        abort();
+    }
 
-	// Asociamos el socket a un puerto
-	setsockopt(fd_escucha, SOL_SOCKET, SO_REUSEPORT, &(int){1}, sizeof(int));
+    err = listen(fd_escucha, SOMAXCONN);
+    if (err == -1) {
+        error_show("listen");
+        abort();
+    }
 
-	bind(fd_escucha, server_info->ai_addr, server_info->ai_addrlen);
-
-	// Escuchamos las conexiones entrantes
-	listen(fd_escucha, SOMAXCONN);
-
-	freeaddrinfo(server_info);
-	log_trace(logger, "Listo para escuchar a mi cliente");
-
-	return fd_escucha;
+    freeaddrinfo(server_info);
+    return fd_escucha;
 }
 
-int esperar_cliente(int socket_servidor)
+int esperar_cliente(int fd_escucha)
 {
-	// Aceptamos un nuevo cliente
-	int socket_cliente;
-	socket_cliente = accept(socket_servidor, NULL, NULL);
-	log_info(logger, "Se conecto un cliente!");
-
-	return socket_cliente;
+    int fd_conexion = accept(fd_escucha, NULL, NULL);
+    if (fd_conexion == -1) {
+        error_show("accept");
+        abort();
+    }
+    return fd_conexion;
 }
 
-int recibir_operacion(int socket_cliente)
+int recibir_operacion(int fd_conexion)
 {
 	int cod_op;
-	if(recv(socket_cliente, &cod_op, sizeof(int), MSG_WAITALL) > 0)
+	if(recv(fd_conexion, &cod_op, sizeof(int), MSG_WAITALL) > 0)
 		return cod_op;
 	else
 	{
-		close(socket_cliente);
 		return -1;
 	}
 }

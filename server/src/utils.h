@@ -8,6 +8,7 @@
 #include<netdb.h>
 #include<commons/log.h>
 #include<commons/collections/list.h>
+#include <commons/error.h>
 #include<string.h>
 #include<assert.h>
 
